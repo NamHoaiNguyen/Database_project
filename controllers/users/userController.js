@@ -1,6 +1,12 @@
 const db = require("../../models");
+const bcrypt = require("bcrypt");
 
 const { Op } = db.Sequelize;
+const { validationResult } = require("express-validator/check");
+
+const generateHash = (password) => {
+  return bcrypt.hashSync(password, bcrypt.genSaltSync(8), null);
+};
 
 module.exports = {
   filter: (req, res) => {
@@ -124,6 +130,7 @@ module.exports = {
 
            db.User.update(
              {
+               username : req.body.username,
                facebookLink: req.body.facebookLink,
                phoneNumber: req.body.phoneNumber,
                city: req.body.city,
@@ -131,7 +138,6 @@ module.exports = {
                dob : req.body.dob,
              },
              {where :{id : req.params.id}}
-
            ).then(newUpdate => {
              if(newUpdate){
                 res.status(200).json({
@@ -146,7 +152,6 @@ module.exports = {
                });
              }
            });
-
       }
       else{
         res.status(422).json({
@@ -154,6 +159,46 @@ module.exports = {
         });
       }
      });
+  },
+
+  change : (req, res) =>{
+    db.User.findByPk(req.params.id).then(change =>{
+      if(change){
+         bcrypt.compare(req.body.password, change.password).then(result =>{
+           if(result){
+             db.User.update({
+               password : generateHash(req.body.newpassword),
+             },
+             {where : {id : req.params.id}}
+           ).then(newpass =>{
+              if(newpass){
+                res.status(200).json({
+                  message : "Change successfuly"
+                });
+              }
+          else{
+             res.status(422).json({
+               message : "Can't update!!!"
+             });
+           }
+         });
+       }else{
+         res.status(422).json({
+           message : "Enter wrong password!!!"
+         });
+       }
+         }).catch(err =>{
+           res.status(422).json({
+             message : "Auth failed"
+           });
+         });
+      }else{
+        res.status(422).json({
+          message : "Not this person"
+        });
+      }
+    });
   }
 
-};
+
+}
